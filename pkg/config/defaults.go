@@ -447,6 +447,12 @@ func DefaultConfig() *Config {
 					MaxResults:   5,
 				},
 			},
+			Browser: BrowserConfig{
+				Enabled:  false,
+				Headless: true,
+				Timeout:  30,
+				CDPPort:  9222,
+			},			
 			Cron: CronToolsConfig{
 				ToolConfig: ToolConfig{
 					Enabled: true,

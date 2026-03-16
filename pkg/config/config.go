@@ -683,6 +683,14 @@ type GLMSearchConfig struct {
 	MaxResults   int    `json:"max_results"   env:"PICOCLAW_TOOLS_WEB_GLM_MAX_RESULTS"`
 }
 
+type BrowserConfig struct {
+	Enabled  bool   `json:"enabled" env:"PICOCLAW_TOOLS_BROWSER_ENABLED"`
+	Session  string `json:"session" env:"PICOCLAW_TOOLS_BROWSER_SESSION"`
+	Headless bool   `json:"headless" env:"PICOCLAW_TOOLS_BROWSER_HEADLESS"`
+	Timeout  int    `json:"timeout" env:"PICOCLAW_TOOLS_BROWSER_TIMEOUT"`
+	CDPPort  int    `json:"cdp_port" env:"PICOCLAW_TOOLS_BROWSER_CDP_PORT"`
+}
+
 type WebToolsConfig struct {
 	ToolConfig `                 envPrefix:"PICOCLAW_TOOLS_WEB_"`
 	Brave      BraveConfig      `                                json:"brave"`
@@ -734,6 +742,7 @@ type ToolsConfig struct {
 	AllowReadPaths  []string           `json:"allow_read_paths"  env:"PICOCLAW_TOOLS_ALLOW_READ_PATHS"`
 	AllowWritePaths []string           `json:"allow_write_paths" env:"PICOCLAW_TOOLS_ALLOW_WRITE_PATHS"`
 	Web             WebToolsConfig     `json:"web"`
+	Browser         BrowserConfig      `json:"browser"`
 	Cron            CronToolsConfig    `json:"cron"`
 	Exec            ExecConfig         `json:"exec"`
 	Skills          SkillsToolsConfig  `json:"skills"`
