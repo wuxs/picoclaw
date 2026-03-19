@@ -124,6 +124,13 @@ func (h *Handler) TryAutoStartGateway() {
 		gateway.cmd = nil
 	}
 
+	// Check whether a gateway is already running externally (e.g. via systemd).
+	// If the health endpoint responds we skip auto-start to avoid a duplicate.
+	if h.isGatewayHealthy() {
+		logger.InfoC("gateway", "Skip auto-starting gateway: already running externally")
+		return
+	}
+
 	ready, reason, err := h.gatewayStartReady()
 	if err != nil {
 		logger.ErrorC("gateway", fmt.Sprintf("Skip auto-starting gateway: %v", err))
@@ -167,6 +174,27 @@ func (h *Handler) gatewayStartReady() (bool, string, error) {
 	}
 
 	return true, "", nil
+}
+
+// isGatewayHealthy probes the gateway health endpoint and returns true if it
+// responds with HTTP 200. Used to detect an externally-managed gateway process.
+func (h *Handler) isGatewayHealthy() bool {
+	cfg, err := config.LoadConfig(h.configPath)
+	if err != nil {
+		return false
+	}
+	host := gatewayProbeHost(h.effectiveGatewayBindHost(cfg))
+	port := cfg.Gateway.Port
+	if port == 0 {
+		port = 18790
+	}
+	url := fmt.Sprintf("http://%s/health", net.JoinHostPort(host, strconv.Itoa(port)))
+	resp, err := gatewayHealthGet(url, 1*time.Second)
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
 }
 
 func lookupModelConfig(cfg *config.Config, modelName string) *config.ModelConfig {
@@ -726,9 +754,17 @@ func (h *Handler) gatewayStatusData() map[string]any {
 	healthResp, statusCode, err := h.getGatewayHealth(cfg, 2*time.Second)
 	if err != nil {
 		gateway.mu.Lock()
-		data["gateway_status"] = gatewayStatusWithoutHealthLocked()
+		launcherStatus := gatewayStatusWithoutHealthLocked()
 		gateway.mu.Unlock()
 		logger.ErrorC("gateway", fmt.Sprintf("Gateway health check failed: %v", err))
+
+		// Only probe for an external gateway when the launcher has no in-progress
+		// state (restarting/error). Those states take precedence.
+		if launcherStatus == "stopped" && h.isGatewayHealthy() {
+			data["gateway_status"] = "running"
+		} else {
+			data["gateway_status"] = launcherStatus
+		}
 	} else {
 		logger.InfoC("gateway", fmt.Sprintf("Gateway health status: %d", statusCode))
 		if statusCode != http.StatusOK {
