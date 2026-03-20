@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -21,6 +22,14 @@ func markdownToTelegramHTML(text string) string {
 	text = reBlockquote.ReplaceAllString(text, "$1")
 
 	text = escapeHTML(text)
+
+	// Replace <think> blocks (now escaped as &lt;think&gt;)
+	// We do this here so it doesn't affect code blocks (which are still placeholders)
+	reThinkClosed := regexp.MustCompile(`(?s)&lt;think&gt;(.*?)&lt;/think&gt;`)
+	text = reThinkClosed.ReplaceAllString(text, "<blockquote expandable><b>💭 Thinking...</b><br>\n$1</blockquote>")
+
+	reThinkOpen := regexp.MustCompile(`(?s)&lt;think&gt;(.*?)$`)
+	text = reThinkOpen.ReplaceAllString(text, "<blockquote expandable><b>💭 Thinking...</b><br>\n$1</blockquote>")
 
 	text = reLink.ReplaceAllString(text, `<a href="$2">$1</a>`)
 

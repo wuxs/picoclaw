@@ -66,3 +66,31 @@ func Test_markdownToTelegramMarkdownV2(t *testing.T) {
 		})
 	}
 }
+
+func TestMarkdownToTelegramMarkdownV2_Think(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "closed think block",
+			in:   "Intro\n<think>This is a thought\nLine2</think>\nConclusion",
+			want: "Intro\n**> 💭 Thinking...**\n> \n> This is a thought\n> Line2\nConclusion",
+		},
+		{
+			name: "unclosed think block",
+			in:   "<think>Streaming...",
+			want: "**> 💭 Thinking...**\n> \n> Streaming...",
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := markdownToTelegramMarkdownV2(tt.in)
+			if got != tt.want {
+				t.Errorf("\nInput:    %q\nExpected: %q\nGot:      %q", tt.in, tt.want, got)
+			}
+		})
+	}
+}

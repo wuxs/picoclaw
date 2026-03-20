@@ -31,15 +31,18 @@ var mdV2SpecialChars = map[rune]bool{
 
 // entityPattern describes one Telegram MarkdownV2 inline entity type.
 type entityPattern struct {
-	re    *regexp.Regexp
-	open  string
-	close string
+	re      *regexp.Regexp
+	open    string
+	close   string
+	isThink bool
 }
 
 // allEntityPatterns lists every recognized entity in priority order
 // (longer / more-specific delimiters first so they win over shorter ones).
 // Each entry's regex is anchored to find the first occurrence in a string.
 var allEntityPatterns = []entityPattern{
+	// thinking block — matches streaming/unclosed tags too
+	{re: regexp.MustCompile(`(?s)<think>.*?(?:</think>|$)`), isThink: true},
 	// fenced code block — content is completely verbatim
 	{re: regexp.MustCompile("(?s)```(?:[\\w]*\\n)?[\\s\\S]*?```"), open: "```", close: "```"},
 	// inline code — content is completely verbatim
@@ -149,7 +152,26 @@ func processText(text string) string {
 	// The matched entity span.
 	matched := text[bestStart:bestEnd]
 
-	if verbatimEntities[bestPat.open] {
+	if bestPat.isThink {
+		inner := matched[7:] // len("<think>")
+		if strings.HasSuffix(inner, "</think>") {
+			inner = inner[:len(inner)-8] // len("</think>")
+		}
+
+		b.WriteString("**> 💭 Thinking\\.\\.\\.**\n")
+		innerProcessed := processText(inner)
+		lines := strings.Split(innerProcessed, "\n")
+		for i, l := range lines {
+			if i > 0 {
+				b.WriteString("\n")
+			}
+			if l == "" {
+				b.WriteString(">")
+			} else {
+				b.WriteString("> " + l)
+			}
+		}
+	} else if verbatimEntities[bestPat.open] {
 		// Code blocks, URLs, quotes: pass through completely untouched.
 		b.WriteString(matched)
 	} else {
